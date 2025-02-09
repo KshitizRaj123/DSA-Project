@@ -1,9 +1,11 @@
 import customtkinter as ctk
 from PIL import Image, ImageTk
 from tkinter import filedialog
-import os
 from pdfmergerlogic import merge_pdfs  # Import the function from pdfmergerlogic.py
-from pdfresizerlogic import *  # Keep your other logic as required
+from pdfresizerlogic import resize_pdf, get_min_size  # Import from pdfresizerlogic.py
+import fitz  # PyMuPDF to get PDF properties
+import os
+import tempfile
 
 # Set Dark Mode
 ctk.set_appearance_mode("Dark")
@@ -43,6 +45,33 @@ textbox = ctk.CTkTextbox(main_frame, width=500, height=50, text_color='White', f
 textbox.insert("0.5", "Welcome to PDF Merger & Resizer")
 textbox.configure(state="disabled")
 textbox.place(relx=0.2, rely=0.1)
+
+# Merge PDF Image
+image1 = ctk.CTkImage(light_image=Image.open("image1.png"), size=(300, 300))
+label1 = ctk.CTkLabel(main_frame, image=image1, text="")
+label1.place(relx=0.15, rely=0.3)
+
+# Resize PDF Image
+image2 = ctk.CTkImage(light_image=Image.open("image2.png"), size=(300, 300))
+label2 = ctk.CTkLabel(main_frame, image=image2, text="")
+label2.place(relx=0.68, rely=0.3)
+
+# Buttons
+button1 = ctk.CTkButton(main_frame, text="Merge PDF", fg_color="#210201", corner_radius=20,
+                        hover_color='#E1C321', text_color='green', font=("Arial", 18),
+                        command=lambda: show_frame(merge_frame))
+
+button2 = ctk.CTkButton(main_frame, text="Resize PDF", fg_color='#210201', corner_radius=20,
+                        hover_color='#E1C321', text_color='green', font=("Arial", 18),
+                        command=lambda: show_frame(resize_frame))
+
+button3 = ctk.CTkButton(main_frame, text="Exit", fg_color='#210201', corner_radius=20,
+                        hover_color='#E1C321', text_color='green', font=("Arial", 18),
+                        command=root.destroy)
+
+button1.place(relx=0.2, rely=0.8)
+button2.place(relx=0.75, rely=0.8)
+button3.place(relx=0.45, rely=0.9)
 
 # Merge PDF Image
 image1 = ctk.CTkImage(light_image=Image.open("image1.png"), size=(300, 300))
@@ -139,6 +168,68 @@ confirm_button.pack(pady=10)
 # Back Button
 merge_back_button = ctk.CTkButton(merge_frame, text="Back to Main", command=lambda: show_frame(main_frame))
 merge_back_button.pack(pady=20)
+
+# Resize PDF Screen
+resize_label = ctk.CTkLabel(resize_frame, text="Resize PDFs Here", font=("Arial", 24))
+resize_label.pack(pady=20)
+
+resize_selected_pdf = ""
+original_size_label = ctk.CTkLabel(resize_frame, text="Original Size: -- KB", font=("Arial", 16))
+resize_min_size_label = ctk.CTkLabel(resize_frame, text="Minimum Size: -- KB", font=("Arial", 16))
+
+def select_resize_pdf():
+    global resize_selected_pdf
+    file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
+    if file_path:
+        resize_selected_pdf = file_path
+        # Get the original file size in KB
+        original_size = os.path.getsize(resize_selected_pdf) / 1024  # Size in KB
+        original_size_label.configure(text=f"Original Size: {original_size:.2f} KB")
+
+        # Calculate the minimum size and show it
+        min_size_kb = get_min_size(resize_selected_pdf)
+        resize_min_size_label.configure(text=f"Minimum Size: {min_size_kb:.2f} KB")
+
+        # Enable the resize button
+        resize_button.configure(state="normal")
+def resize_pdf_action():
+    if resize_selected_pdf:
+        desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+        base_filename = "Resized_PDF"
+        counter = 1
+        output_pdf_path = os.path.join(desktop_path, f"{base_filename}.pdf")
+
+        # Ensure a unique filename
+        while os.path.exists(output_pdf_path):
+            output_pdf_path = os.path.join(desktop_path, f"{base_filename}_{counter}.pdf")
+            counter += 1
+
+        # Ensure the PDF is properly resized while maintaining content
+        try:
+            resize_pdf(resize_selected_pdf, output_pdf_path)  # Call your resizing function
+            resize_min_size_label.configure(text=f"Resized PDF saved to {output_pdf_path}")
+            print(f"Resized PDF successfully saved to {output_pdf_path}")
+        except Exception as e:
+            resize_min_size_label.configure(text="Error resizing PDF")
+            print(f"Error resizing PDF: {e}")
+
+
+# Insert PDF Button
+insert_resize_button = ctk.CTkButton(resize_frame, text="Insert PDF", font=("Arial", 18), command=select_resize_pdf)
+insert_resize_button.pack(pady=10)
+
+# Display PDF info labels
+original_size_label.pack(pady=5)
+resize_min_size_label.pack(pady=5)
+
+# Resize Button (Initially Disabled)
+resize_button = ctk.CTkButton(resize_frame, text="Resize PDF", font=("Arial", 18), state="disabled", command=resize_pdf_action)
+resize_button.pack(pady=10)
+
+# Back Button
+resize_back_button = ctk.CTkButton(resize_frame, text="Back to Main", command=lambda: show_frame(main_frame))
+resize_back_button.pack(pady=20)
+
 
 # Initially, show the main screen
 show_frame(main_frame)
